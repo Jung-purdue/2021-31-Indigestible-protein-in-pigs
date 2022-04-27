@@ -315,6 +315,42 @@ qiime composition ancom \
   --m-metadata-column subject \
   --o-visualization l6-ancom-subject.qzv
 
+qiime picrust2 full-pipeline --help
 
+cd $RCAC_SCRATCH
+cd qiime
+mkdir picrust2_day7
+cd picrust2_day7
+mkdir moving-pictures_day7
+cd moving-pictures_day7
+cp /depot/microbiome/data/ANSC595/jung/2021-31_new/day7/day7_table.qza .
+cp /depot/microbiome/data/ANSC595/jung/2021-31_new/rep-seqs.qza .
+cp /depot/microbiome/data/ANSC595/jung/2021-31_new/2021-31_metadata_ver.3.0_d7.txt .
 
+qiime picrust2 full-pipeline \
+   --i-table day7_table.qza \
+   --i-seq rep-seqs.qza \
+   --output-dir q2-picrust2_output \
+   --p-placement-tool sepp \
+   --p-threads 1 \
+   --p-hsp-method pic \
+   --p-max-nsti 2 \
+   --verbose
 
+mkdir picrust2_day21
+cd picrust2_day21
+mkdir moving-pictures_day21
+cd moving-pictures_day21
+cp /depot/microbiome/data/ANSC595/jung/2021-31_new/day22/day22_table.qza .
+cp /depot/microbiome/data/ANSC595/jung/2021-31_new/rep-seqs.qza .
+cp /depot/microbiome/data/ANSC595/jung/2021-31_new/2021-31_metadata_ver.3.0_d21.txt .
+
+qiime picrust2 full-pipeline \
+   --i-table day22_table.qza \
+   --i-seq rep-seqs.qza \
+   --output-dir q2-picrust2_output \
+   --p-placement-tool sepp \
+   --p-threads 1 \
+   --p-hsp-method pic \
+   --p-max-nsti 2 \
+   --verbose
