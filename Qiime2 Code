@@ -1,1 +1,320 @@
-Code
+sinteractive -A microbiome -n24 -t 2:00:00
+module load bioinfo
+module load Qiime/2-2021.11
+
+#How to import data (how to make demux.qza)
+qiime tools import \
+--type 'SampleData[PairedEndSequencesWithQuality]' \
+--input-path 2021-31_manifest_ver.3.0.txt \
+--input-format PairedEndFastqManifestPhred33V2 \
+--output-path ./demux.qza
+
+#Visualize demux.qzv
+qiime demux summarize \
+  --i-data demux.qza \
+  --o-visualization demux.qzv
+
+#Read demux.qzv using https://view.qiime2.org/
+#Based on the result, determine trim and len. 
+
+#DADA2
+qiime dada2 denoise-paired \
+  --i-demultiplexed-seqs demux.qza \
+  --p-trim-left-f 13 \
+  --p-trim-left-r 13 \
+  --p-trunc-len-f 250 \
+  --p-trunc-len-r 250 \
+  --p-n-threads 0 \
+  --o-representative-sequences rep-seqs-dada2.qza \
+  --o-table table-dada2.qza \
+  --o-denoising-stats stats-dada2.qza
+
+#FeatureTable and FeatureData (initial step)
+qiime metadata tabulate \
+--m-input-file stats-dada2.qza \
+--o-visualization stats-dada2.qzv
+
+mv rep-seqs-dada2.qza rep-seqs.qza
+mv table-dada2.qza table.qza
+ 
+qiime feature-table filter-samples \
+  --i-table table.qza \
+  --m-metadata-file 2021-31_metadata_ver.3.0.txt \
+  --p-where "[day]='0'" \
+  --o-filtered-table day0/day0_table.qza
+
+qiime feature-table filter-samples \
+  --i-table table.qza \
+  --m-metadata-file 2021-31_metadata_ver.3.0.txt \
+  --p-where "[day]='7'" \
+  --o-filtered-table day7/day7_table.qza
+
+qiime feature-table filter-samples \
+  --i-table table.qza \
+  --m-metadata-file 2021-31_metadata_ver.3.0.txt \
+  --p-where "[day]='22'" \
+  --o-filtered-table day22/day22_table.qza
+
+qiime feature-table summarize \
+  --i-table day0/day0_table.qza \
+  --o-visualization day0/day0_table.qzv
+
+qiime feature-table summarize \
+  --i-table day7/day7_table.qza \
+  --o-visualization day7/day7_table.qzv
+
+qiime feature-table summarize \
+  --i-table day22/day22_table.qza \
+  --o-visualization day22/day22_table.qzv
+
+qiime feature-classifier classify-sklearn \
+  --i-classifier silva-138-99-515-806-nb-classifier.qza \
+  --i-reads rep-seqs.qza \
+  --p-n-jobs 96 \
+  --o-classification taxonomy2.qza
+
+qiime metadata tabulate \
+  --m-input-file taxonomy2.qza \
+  --o-visualization taxonomy.qzv \
+
+qiime taxa filter-table \
+  --i-table table.qza \
+  --i-taxonomy taxonomy.qza \
+  --p-exclude Mitochondria,Chloroplast,Archaea \
+  --o-filtered-table filtered-table.qza
+
+qiime taxa filter-seqs \
+  --i-sequences rep-seqs.qza \
+  --i-taxonomy taxonomy.qza \
+  --p-exclude Mitochondria,Chloroplast,Archaea \
+  --o-filtered-sequences filtered-rep-seqs.qza
+
+qiime feature-table summarize \
+  --i-table filtered-table.qza \
+  --o-visualization filtered-table.qzv \
+  --m-sample-metadata-file 2021-31_metadata_ver.3.0.txt
+
+qiime feature-table tabulate-seqs \
+  --i-data filtered-rep-seqs.qza \
+  --o-visualization filtered-rep-seqs.qzv
+
+#echo "6-2. Core-metrics-phylogenetic (initial)"
+
+qiime diversity core-metrics-phylogenetic \
+  --i-phylogeny rooted-tree.qza \
+  --i-table filtered-table.qza \
+  --p-sampling-depth 20000\
+  --p-n-jobs-or-threads 64 \
+  --m-metadata-file 2021-31_metadata_ver.3.0.txt \
+  --output-dir core-metrics-results
+
+#echo "7-1. Separation of rarefied_table by samples"
+
+qiime feature-table filter-samples \
+  --i-table core-metrics-results/rarefied_table.qza \
+  --m-metadata-file 2021-31_metadata_ver.3.0.txt \
+  --p-where "[day]= '0'" \
+  --o-filtered-table day0_table.qza
+
+qiime feature-table filter-samples \
+  --i-table core-metrics-results/rarefied_table.qza \
+  --m-metadata-file 2021-31_metadata_ver.3.0.txt \
+  --p-where "[day]= '7'" \
+  --o-filtered-table day7_table.qza
+
+qiime feature-table filter-samples \
+  --i-table core-metrics-results/rarefied_table.qza \
+  --m-metadata-file 2021-31_metadata_ver.3.0.txt \
+  --p-where "[day]= '22'" \
+  --o-filtered-table day22_table.qza
+
+#echo "8-1. Core-metrics for ileum samples"
+
+qiime diversity core-metrics-phylogenetic \
+  --i-phylogeny rooted-tree.qza \
+  --i-table day0_table.qza \
+  --p-sampling-depth 2000 \
+  --p-n-jobs-or-threads 64 \
+  --m-metadata-file 2021-31_metadata_ver.3.0.txt \
+  --output-dir core-metrics-results-day0
+
+qiime diversity core-metrics-phylogenetic \
+  --i-phylogeny rooted-tree.qza \
+  --i-table day7_table.qza \
+  --p-sampling-depth 2000 \
+  --p-n-jobs-or-threads 24 \
+  --m-metadata-file 2021-31_metadata_ver.3.0.txt \
+  --output-dir core-metrics-results-day7-new
+
+qiime diversity core-metrics-phylogenetic \
+  --i-phylogeny rooted-tree.qza \
+  --i-table day22_table.qza \
+  --p-sampling-depth 2000 \
+  --p-n-jobs-or-threads 64 \
+  --m-metadata-file 2021-31_metadata_ver.3.0.txt \
+  --output-dir core-metrics-results-day22
+
+##Alpha diversity
+qiime diversity alpha-group-significance \
+  --i-alpha-diversity shannon_vector.qza \
+  --m-metadata-file ../2021-31_metadata_ver.3.0.txt \
+  --o-visualization shannon-group-significance-day7.qzv
+
+qiime diversity alpha-group-significance \
+  --i-alpha-diversity evenness_vector.qza \
+  --m-metadata-file ../2021-31_metadata_ver.3.0.txt \
+  --o-visualization evenness-group-significance-day7.qzv
+
+qiime diversity alpha-group-significance \
+  --i-alpha-diversity faith_pd_vector.qza  \
+  --m-metadata-file ../2021-31_metadata_ver.3.0.txt \
+  --o-visualization faith_pd-group-significance-day7.qzv
+
+qiime diversity alpha-group-significance \
+  --i-alpha-diversity observed_features_vector.qza \
+  --m-metadata-file ../2021-31_metadata_ver.3.0.txt \
+  --o-visualization observed_features-group-significance-day7.qzv
+
+qiime diversity alpha-group-significance \
+  --i-alpha-diversity shannon_vector.qza \
+  --m-metadata-file ../2021-31_metadata_ver.3.0.txt \
+  --o-visualization shannon-group-significance-day22.qzv
+
+qiime diversity alpha-group-significance \
+  --i-alpha-diversity evenness_vector.qza \
+  --m-metadata-file ../2021-31_metadata_ver.3.0.txt \
+  --o-visualization evenness-group-significance-day22.qzv
+
+qiime diversity alpha-group-significance \
+  --i-alpha-diversity faith_pd_vector.qza  \
+  --m-metadata-file ../2021-31_metadata_ver.3.0.txt \
+  --o-visualization faith_pd-group-significance-day22.qzv
+
+qiime diversity beta-group-significance \
+  --i-distance-matrix unweighted_unifrac_pcoa_results.qza \
+  --m-metadata-file ../2021-31_metadata_ver.3.0.txt \
+  --m-metadata-column diet \
+  --o-visualization bray_curtis_pcoa_results-day22.qzv \
+  --p-pairwise
+
+qiime diversity beta-group-significance \
+  --i-distance-matrix weighted_unifrac_distance_matrix.qza \
+  --m-metadata-file ../2021-31_metadata_ver.3.0.txt \
+  --m-metadata-column diet \
+  --o-visualization weighted_unifrac_distance_matrix.qza-day22.qzv \
+  --p-pairwise
+
+qiime diversity beta-group-significance \
+  --i-distance-matrix Unweighted_unifrac_distance_matrix.qza \
+  --m-metadata-file ../2021-31_metadata_ver.3.0.txt \
+  --m-metadata-column diet \
+  --o-visualization Unweighted_unifrac_distance_matrix.qza-day22.qzv \
+  --p-pairwise
+
+qiime diversity beta-group-significance \
+  --i-distance-matrix jaccard_distance_matrix.qza \
+  --m-metadata-file ../2021-31_metadata_ver.3.0.txt \
+  --m-metadata-column diet \
+  --o-visualization jaccard_distance_matrix-day22.qzv \
+  --p-pairwise
+ 
+qiime diversity beta-group-significance \
+  --i-distance-matrix bray_curtis_distance_matrix.qza \
+  --m-metadata-file ../2021-31_metadata_ver.3.0.txt \
+  --m-metadata-column diet \
+  --o-visualization bray_curtis_distance_matrix-day7.qzv \
+  --p-pairwise
+
+qiime diversity beta-group-significance \
+  --i-distance-matrix weighted_unifrac_distance_matrix.qza \
+  --m-metadata-file ../2021-31_metadata_ver.3.0.txt \
+  --m-metadata-column diet \
+  --o-visualization weighted_unifrac_distance_matrix.qza-day7.qzv \
+  --p-pairwise
+
+
+qiime diversity beta-group-significance \
+  --i-distance-matrix unweighted_unifrac_distance_matrix.qza \
+  --m-metadata-file ../2021-31_metadata_ver.3.0.txt \
+  --m-metadata-column diet \
+  --o-visualization unweighted_unifrac_distance_matrix.qza-day7.qzv \
+  --p-pairwise
+
+qiime diversity beta-group-significance \
+  --i-distance-matrix jaccard_distance_matrix.qza \
+  --m-metadata-file ../2021-31_metadata_ver.3.0.txt \
+  --m-metadata-column diet \
+  --o-visualization jaccard_distance_matrix-day7.qzv \
+  --p-pairwise
+
+#echo "Make a stacked barplot"
+qiime taxa barplot \
+  --i-table day7/day7_table.qza \
+  --i-taxonomy taxonomy.qza \
+  --m-metadata-file 2021-31_metadata_ver.3.0.txt \
+  --o-visualization day7_taxa-bar-plots.qzv
+
+qiime taxa barplot \
+  --i-table day22/day22_table.qza \
+  --i-taxonomy taxonomy.qza \
+  --m-metadata-file 2021-31_metadata_ver.3.0.txt \
+  --o-visualization day22_taxa-bar-plots.qzv
+
+qiime composition add-pseudocount \
+  --i-table day7/day7_table.qza \
+  --o-composition-table day7_comp-diet-table.qza
+
+qiime composition add-pseudocount \
+  --i-table day22/day22_table.qza \
+  --o-composition-table day22_comp-diet-table.qza
+
+
+qiime composition ancom \
+  --i-table day7_comp-diet-table.qza \
+  --m-metadata-file 2021-31_metadata_ver.3.0.txt \
+  --m-metadata-column rep \
+  --o-visualization day7_ancom-rep.qzv
+
+qiime composition ancom \
+  --i-table day22_comp-diet-table.qza \
+  --m-metadata-file 2021-31_metadata_ver.3.0.txt \
+  --m-metadata-column diet \
+  --o-visualization day22_ancom-diet.qzv
+
+qiime taxa collapse \
+  --i-table day7/day7_table.qza \
+  --i-taxonomy taxonomy.qza \
+  --p-level 6 \
+  --o-collapsed-table day7-table-l6.qza
+
+qiime composition add-pseudocount \
+  --i-table day7-table-l6.qza \
+  --o-composition-table comp-day7-table-l6.qza
+
+qiime composition ancom \
+  --i-table comp-day7-table-l6.qza \
+  --m-metadata-file 2021-31_metadata_ver.3.0.txt \
+  --m-metadata-column diet \
+  --o-visualization day7-l6-ancom-diet.qzv
+
+#echo "Collapse levels and ancom again."
+
+qiime taxa collapse \
+  --i-table gut-table.qza \
+  --i-taxonomy taxonomy.qza \
+  --p-level 6 \
+  --o-collapsed-table gut-table-l6.qza
+
+qiime composition add-pseudocount \
+  --i-table gut-table-l6.qza \
+  --o-composition-table comp-gut-table-l6.qza
+
+qiime composition ancom \
+  --i-table comp-gut-table-l6.qza \
+  --m-metadata-file sample-metadata.tsv \
+  --m-metadata-column subject \
+  --o-visualization l6-ancom-subject.qzv
+
+
+
+
