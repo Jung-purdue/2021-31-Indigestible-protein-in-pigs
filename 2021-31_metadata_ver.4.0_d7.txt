@@ -1,0 +1,20 @@
+sample-id	rep	period	diet	day
+#q2:types	categorical	categorical	categorical	categorical
+NP-1	2	2	Normal CP	7
+NP-5	3	2	Normal CP	7
+NP-9	6	2	Normal CP	7
+NP-12	4	2	Normal CP	7
+NP-16	1	2	Normal CP	7
+NP-17	5	2	Normal CP	7
+NP-4	2	2	High-indigestible CP	7
+NP-6	6	2	High-indigestible CP	7
+NP-8	3	2	High-indigestible CP	7
+NP-10	5	2	High-indigestible CP	7
+NP-14	1	2	High-indigestible CP	7
+NP-20	4	2	High-indigestible CP	7
+NP-2	2	2	High CP	7
+NP-3	6	2	High CP	7
+NP-7	3	2	High CP	7
+NP-11	4	2	High CP	7
+NP-13	1	2	High CP	7
+NP-15	5	2	High CP	7
