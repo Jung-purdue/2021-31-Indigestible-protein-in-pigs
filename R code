@@ -72,24 +72,12 @@ TukeyHSD(aov.shannon_entropy)
 #Plot
 body_colors <- c("Red", "Blue", "Green")
 
-
-boxplot(shannon_entropy ~ diet, data=meta, xlab = "Diet", ylab="Shannon entrophy")
-
-library(ggplot2)
-shannon_color <- ggplot(meta, aes(as.factor(diet), shannon_entropy)) + 
-  geom_boxplot() +
-  scale_x_discrete(limits=c("Normal CP", "High-indigestible CP", "High CP")) +
-  #ylim(c(0.5,2)) +
-  theme_q2r() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
-  shannon_color
-
-ggsave("output/shannon_entrophy.png", evenness, height = 3, width = 3)
-
 # Now, the above graph is kind of not correct. Our test and our graphic do not exactly match. ANOVA and Tukey are tests based on the mean, but the boxplot plots the median. Its not wrong, its just not the best method. Unfortunately plotting the average and standard deviation is a little complicated.
 
 # Order the diets
 meta$diet = factor(meta$diet, c("Normal CP", "High-indigestible CP", "High CP"))
+
+
 
 # Shannon
 shannon_summary <- meta %>% # the names of the new data frame and the data frame to be summarised
@@ -101,6 +89,7 @@ shannon_summary <- meta %>% # the names of the new data frame and the data frame
 
 shannon_se <- ggplot(shannon_summary, aes(diet, mean_shannon, fill = diet)) + 
   geom_col() + 
+  geom_errorbar(aes(ymin = mean_shannon - se_shannon, ymax = mean_shannon + se_shannon), width=0.2) + 
   theme_q2r() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
   theme(legend.title = element_blank()) +
@@ -110,36 +99,62 @@ shannon_se
 ggsave("output/shannon.png", shannon_se, height = 3, width = 3)
 
 # Pielou's evenness
-evenness_summary <- meta %>% # the names of the new data frame and the data frame to be summarised
-  group_by(diet) %>%   # the grouping variable
-  summarise(mean_evenness = mean(pielou_evenness))
-  
-  evenness_se <- ggplot(evenness_summary, aes(diet, mean_evenness, fill = diet)) + 
-  geom_col() + 
-  theme_q2r() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
-  theme(legend.title = element_blank()) +
-  labs(y="Pielow evenness", x = "") 
-
-  evenness_se
-  ggsave("output/evenness.png", evenness_se, height = 3, width = 3)
-  
-  # observed_features
-  observed_features_summary <- meta %>% # the names of the new data frame and the data frame to be summarised
+  evenness_summary <- meta %>% # the names of the new data frame and the data frame to be summarised
     group_by(diet) %>%   # the grouping variable
-    summarise(mean_observed_features = mean(observed_features))
+    summarise(mean_evenness = mean(pielou_evenness),  # calculates the mean of each group
+              sd_evenness = sd(pielou_evenness), # calculates the standard deviation of each group
+              n_evenness = n(),  # calculates the sample size per group
+              se_evenness = sd(pielou_evenness)/sqrt(n())) # calculates the standard error of each group
   
-  observed_features_se <- ggplot(observed_features_summary, aes(diet, mean_observed_features, fill = diet)) + 
+  pielou_evenness_se <- ggplot(evenness_summary, aes(diet, mean_evenness, fill = diet)) + 
     geom_col() + 
+    geom_errorbar(aes(ymin = mean_evenness - se_evenness, ymax = mean_evenness + se_evenness), width=0.2) + 
     theme_q2r() +
     theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
     theme(legend.title = element_blank()) +
-    labs(y="Observed features", x = "") 
+    labs(y="Pielou's evenness", x = "") 
   
-  evenness_se
-  ggsave("output/observed_features.png", observed_features_se, height = 3, width = 3)
+ggsave("output/pielou_evenness.png", pielou_evenness_se, height = 3, width = 3)
   
+  
+  
+  # observed_features
+observed_features_summary <- meta %>% # the names of the new data frame and the data frame to be summarised
+  group_by(diet) %>%   # the grouping variable
+  summarise(mean_observed_features = mean(observed_features),  # calculates the mean of each group
+            sd_observed_features = sd(observed_features), # calculates the standard deviation of each group
+            n_observed_features = n(),  # calculates the sample size per group
+            se_observed_features = sd(observed_features)/sqrt(n())) # calculates the standard error of each group
+
+observed_features_se <- ggplot(observed_features_summary, aes(diet, mean_observed_features, fill = diet)) + 
+  geom_col() + 
+  geom_errorbar(aes(ymin = mean_observed_features - se_observed_features, ymax = mean_observed_features + se_observed_features), width=0.2) + 
+  theme_q2r() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  theme(legend.title = element_blank()) +
+  labs(y="Observed features", x = "") 
+
+ggsave("output/observed_features.png", observed_features_se, height = 3, width = 3)
+
+
   # faith_pd
+faith_pd_summary <- meta %>% # the names of the new data frame and the data frame to be summarised
+  group_by(diet) %>%   # the grouping variable
+  summarise(mean_faith_pd = mean(faith_pd),  # calculates the mean of each group
+            sd_faith_pd = sd(faith_pd), # calculates the standard deviation of each group
+            n_faith_pd = n(),  # calculates the sample size per group
+            se_faith_pd = sd(faith_pd)/sqrt(n())) # calculates the standard error of each group
+
+faith_pd_se <- ggplot(faith_pd_summary, aes(diet, mean_faith_pd, fill = diet)) + 
+  geom_col() + 
+  geom_errorbar(aes(ymin = mean_faith_pd - se_faith_pd, ymax = mean_faith_pd + se_faith_pd), width=0.2) + 
+  theme_q2r() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  theme(legend.title = element_blank()) +
+  labs(y="Faith pd", x = "") 
+ggsave("output/Faith pd.png", faith_pd_se, height = 3, width = 3)
+
+
   faith_pd_summary <- meta %>% # the names of the new data frame and the data frame to be summarised
     group_by(diet) %>%   # the grouping variable
     summarise(mean_faith_pd = mean(faith_pd))
@@ -154,6 +169,7 @@ evenness_summary <- meta %>% # the names of the new data frame and the data fram
   faith_pd_se
   ggsave("output/faith_pd.png", faith_pd_se, height = 3, width = 3)
   
+    
 #Beta-diversity  
 library(qiime2R)
 
